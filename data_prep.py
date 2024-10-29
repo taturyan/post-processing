@@ -60,7 +60,7 @@ def get_german_data(problem='reject_option', as_df=False):
     df = pd.read_csv("./data/german_parsed.csv")
     
     y = df['Type']
-    df = df.drop('Type', 1)
+    df = df.drop('Type', axis=1)
     
     if (problem=='DP_unaware' or problem=='DP_aware'):
         
@@ -122,7 +122,7 @@ def get_adult_data(problem='reject_option', as_df=False):
     df = pd.read_csv("./data/adult_parsed.csv")
     
     y = df['income'] #target
-    df = df.drop('income', 1)
+    df = df.drop('income', axis=1)
     
     if (problem=='DP_unaware' or problem=='DP_aware'):
         
