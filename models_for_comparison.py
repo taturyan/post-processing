@@ -4,6 +4,7 @@ from statsmodels.distributions.empirical_distribution import ECDF
 from data_prep import get_adult_data
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
 
 #Denis,Hebiri
 class BinClassRO:
@@ -27,12 +28,18 @@ class BinClassRO:
     def predict(self, X):
         base_pred = self.base_classifier.predict(X)
         f_X = self.f(X)
-        print(f_X)
-        print(self.CDF_f(f_X))
         reject_mask = self.CDF_f(f_X) < self.alpha
-        print(reject_mask)
         pred = np.where(reject_mask, 'R', base_pred)
         return pred
+
+    def risk(self, y_pred, y_true):
+        y_pred_ = y_pred[y_pred!='R'].astype(int)
+        y_true = y_true[y_pred!='R']
+        return np.mean(y_pred_!=y_true)
+
+    def constraint(self, y_pred):
+        return len(y_pred[y_pred=='R'])/len(y_pred)
+
 
 #test example
 X, y = get_adult_data()
@@ -50,4 +57,5 @@ base_clf.fit(X_train, y_train)
 RO_clf = BinClassRO(base_classifier=base_clf, alpha=0.05)
 RO_clf.fit(X=X_unlab)
 pred = RO_clf.predict(X_test)
-print(pred)
+print(RO_clf.risk(pred, y_test))
+print(RO_clf.constraint(pred))
