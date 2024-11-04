@@ -1,27 +1,35 @@
 import numpy as np
 
-def risk(y, pred, problem='reject'):
+############### risk evaluation measures ###############
+
+def eval_risk(y_pred_prob, y_true, problem='reject_option'):
     """
     Args:
-        base_pred (array): probabilistic predictions predictied by base_classifier
         pred (array): probabilistic predictions predictied after post-processing
-        problem (str): 'reject_option', 'alpha_risk', 'DP_unaware', 'DP_aware', 'general'
-
+        pred (array): true labels
+        problem (str): 'reject_option', 'alpha_risk', 'DP_unaware', 'DP_aware', 'general', 'base'
     Returns:
         int: the risk /used for evaluation/
     """
     if problem=='reject_option':
-        pred = pred[:, :-1]
+        y_pred_prob = y_pred_prob[:, :-1]
+    return np.mean(np.sum((1 - np.eye(y_pred_prob.shape[1])[y_true])*y_pred_prob, axis=1))
 
-    return np.mean(np.sum((1 - np.eye(pred.shape[1])[y])*pred, axis=1))
+def eval_risk_clf(y_pred, y_true):
+    if 'R' in y_pred.astype(str):
+        y_pred_ = y_pred[y_pred!='R']
+        y_pred_ = y_pred_.astype(int)
+        y_true = y_true[y_pred!='R']
+    else:
+        y_pred_ = y_pred.astype(int)
+    return np.sum(y_pred_!=y_true)/len(y_pred)
 
-def prob_risk(base_pred, pred, problem='reject'):
+def eval_optim_risk(base_pred, pred, problem='reject_option'):
     """
     Args:
         base_pred (array): probabilistic predictions predictied by base_classifier
         pred (array): probabilistic predictions predictied after post-processing
         problem (str): 'reject_option', 'alpha_risk', 'DP_unaware', 'DP_aware', 'general'
-
     Returns:
         int: the minimized risk /NOT USED FOR EVALUATION/
     """
@@ -30,13 +38,19 @@ def prob_risk(base_pred, pred, problem='reject'):
     else:
         return np.mean(np.sum((1-base_pred)*pred, axis=1))
 
-def gen_risk(ell, pred):
+def eval_gen_risk(ell, pred):
     pass
 
-############### constraints evaluation ###############
+############### constraints evaluation measures ###############
 
-def eval_RejectOption(pred):
-    return np.mean(pred[:,-1])
+def eval_RejectOption(pred_prob):
+    return np.mean(pred_prob[:,-1])
+
+def eval_RejectOption_clf(y_pred):
+    if 'R' in y_pred.astype(str):
+        return len(y_pred[y_pred=='R'])/len(y_pred)
+    else:
+        return 0
 
 def eval_AlphaRisk(f_pred, pred):
     return np.mean(np.sum((1 - np.eye(pred.shape[1])[f_pred])*pred, axis=1))
