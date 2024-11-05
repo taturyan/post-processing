@@ -150,25 +150,6 @@ def get_frequencies(S):
         p.append(p_s)
     return p             
     
-        
-##############################################################
-
-def drop_str(df):
-    cols = df.columns
-    for c in cols:
-        if isinstance(df[c][1], str):
-            column = df[c]
-            df = df.drop(c, 1)
-    return df
-
-def log_numeric_features(df):
-    cols = df.columns
-    for c in cols:
-        column =df[c]
-        unique_values = list(set(column))
-        n = len(unique_values)
-        if n > 2:
-            df[c] = np.log(1 + df[c])
             
 ###########################################################
 def get_lawschool_data(as_df=False):
