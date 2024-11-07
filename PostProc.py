@@ -106,7 +106,7 @@ class PostProc:
         tau_x_prob = self.tau_X.predict_proba(x.reshape(1, -1))
         tau_x_coef = np.zeros(tau_x_prob.shape)
         for i, p_i in enumerate(self.p):
-            tau_x_coef[:,i] = 1 - clf_prob[i]/p_i 
+            tau_x_coef[:,i] = 1 - tau_x_prob[:,i]/p_i 
 
         grad = np.zeros(2*self.K*self.S_num)
         diff = (w[:self.S_num*self.K].copy() - w[self.S_num*self.K:].copy()).reshape((self.S_num,self.K))
