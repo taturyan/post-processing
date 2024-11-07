@@ -7,7 +7,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 import time
 from fairlearn.reductions import DemographicParity, ExponentiatedGradient
-from evaluation_measures import eval_risk, eval_risk_clf, eval_RejectOption, eval_RejectOption_clf
+from evaluation_measures import eval_risk, eval_risk_clf, eval_RejectOption, eval_RejectOption_clf, eval_DP
 
 #Denis,Hebiri
 class BinClassRO:
@@ -140,73 +140,26 @@ def evaluate_BinClassRO(dataset, num, alpha_list=[0.1, 0.05, 0.025],
 
 
 ########## evaluating fairlearn ##########
-def get_fl_loss(tp, y, result_weights):
-    num_h = len(result_weights)
-    loss_list = [(tp.iloc[:, i] != y).astype(int) for i in range(num_h)]
-    df = pd.concat(loss_list, axis=1)
-    weighted_loss_vec = pd.DataFrame(np.dot(df, pd.DataFrame(result_weights)))
-    loss_vec = weighted_loss_vec.iloc[:, 0]
-    return loss_vec.mean()
-
-def get_fl_predictions(fairlearn_clf, X):
-    weights = fairlearn_clf.weights_[fairlearn_clf.weights_>0]
-    hs = fairlearn_clf.predictors_[fairlearn_clf.weights_>0]
-    pred_list = [pd.Series(h.predict(X)) for h in hs]
-    total_pred = pd.concat(pred_list, axis=1, keys=range(len(weights)))
-    return total_pred, weights
-
-def extract_group_pred(total_pred, S):
-    groups = sorted(list(pd.Series.unique(S)))
-    pred_per_group = {}
-    for g in groups:
-        pred_per_group[g] = total_pred[S == g]
-    return pred_per_group
-
-def get_histogram(pred, _indices):
-    hist = pd.Series(np.zeros(len(_indices)))
-    for _index in _indices:
-        hist[_indices == _index] = len(pred[pred == _index])
-    return hist
-
-def weighted_pmf(pred, classifier_weights, bins=[0,1]):
-    _indices = pd.Series(bins)
-    weights = list(classifier_weights)
-    weighted_histograms = [(get_histogram(pred.iloc[:, i],_indices)) * weights[i]
-                           for i in range(pred.shape[1])]
-    _counts = sum(weighted_histograms)
-    pmf = _counts / sum(_counts)
-    return pmf
-
-def pmf2disp(pmf1, pmf2):
-    cdf_1 = pmf1.cumsum()
-    cdf_2 = pmf2.cumsum()
-    diff = cdf_1 - cdf_2
-    diff = abs(diff)
-    return max(diff)
 
 def evaluate_fairlearn(dataset, num, eps_list, print_details = True,
             TRAIN_SIZE=0.4, UNLAB_SIZE=0.4, TEST_SIZE=0.2, data_scaling=True, partial_training=False):
     #getting data
     if dataset=='adult':
-        X, S, y = get_adult_data(problem='DP_unaware', as_df=True)
+        X, S, y = get_adult_data(problem='DP_unaware', as_df=False)
         #we take only 2000 samples for comparison
         sample_size = 2000 
         X, _, S, _, y ,_ = train_test_split(X, S, y, train_size = sample_size,  stratify=S, random_state=42)
         S_num = 2
-        #p = get_frequencies(S)
     elif dataset=='german':        
-        X, S, y = get_german_data(problem='DP_unaware', as_df=True)
+        X, S, y = get_german_data(problem='DP_unaware', as_df=False)
         S_num = 2
-        #p = get_frequencies(S)
     else:
         raise Exception('Dataset not found.')
 
     #scaling
     if data_scaling:
         scaler = StandardScaler()
-        X_scaled = scaler.fit_transform(X)
-        cols=X.columns
-        X = pd.DataFrame(X_scaled, columns=cols)
+        X = scaler.fit_transform(X)
         
     #initialization 
     time_hist = []
@@ -227,20 +180,16 @@ def evaluate_fairlearn(dataset, num, eps_list, print_details = True,
      
         for i in range(1, num+1):
 
-            X_df, X_test, S_df, S_test, y_df, y_test = train_test_split(X, S, y,
-                                                                           test_size=TEST_SIZE, stratify=S, random_state=i)
-            X_df.index, S_df.index, y_df.index = range(len(X_df)), range(len(S_df)), range(len(y_df))
-            X_test.index, S_test.index, y_test.index = range(len(X_test)), range(len(S_test)), range(len(y_test))
-
+            X_, X_test, S_, S_test, y_, y_test = train_test_split(X, S, y,
+                                                                        test_size=TEST_SIZE, stratify=S, random_state=i)
             #additionally splitting into train and unlab according to our method
             if partial_training:
-                X_train, X_unlab, S_train, S_unlab, y_train, y_unlab = train_test_split(X_df, S_df, y_df, 
-                                                                            train_size = TRAIN_SIZE/(1-TEST_SIZE), stratify=S_df,
+                X_train, X_unlab, S_train, S_unlab, y_train, y_unlab = train_test_split(X_, S_, y_, 
+                                                                            train_size = TRAIN_SIZE/(1-TEST_SIZE), stratify=S_,
                                                                             random_state=i)
-                X_train.index, S_train.index, y_train.index = range(len(X_train)),range(len(S_train)),range(len(y_train))
             else:
-                X_train, S_train, y_train = X_df, S_df, y_df
-    
+                X_train, S_train, y_train = X_, S_, y_
+
             #training fairlearn
             start = time.time()
 
@@ -253,15 +202,11 @@ def evaluate_fairlearn(dataset, num, eps_list, print_details = True,
             time_hist.append(end-start)
             
             #evaluation
-            total_pred, weights = get_fl_predictions(FL_clf, X_test)
-            pred_group = extract_group_pred(total_pred, S_test)
-
-            PMF_all = weighted_pmf(total_pred, weights)
-            PMF_group = [weighted_pmf(pred_group[g], weights) for g in pred_group]
-
-            risk.append(get_fl_loss(total_pred, y_test, weights))
+            pred = FL_clf._pmf_predict(X_test)
+            risk.append(eval_risk(pred, y_test, 'DP_unaware'))            
+            unf_DP = eval_DP(pred, S_test)
             for s in range(S_num):
-                unf[s].append(pmf2disp(PMF_group[s], PMF_all))
+                unf[s].append(unf_DP[s])
             
             if print_details:    
                 print ('-----   ', i,'/',num,': ADW: training completed; training time: ',end-start)
