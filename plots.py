@@ -10,7 +10,6 @@ def plot_compare(pairs_list, model_list,
                 plot_std=True, annotate=False, loglog=False, start_0=False, linestyle='dashed', 
                 figsize=(14,5), fontsize=10):
     
-    
     plt.figure(figsize=figsize, dpi=200)
     plt.title(dataset, fontsize=fontsize)
     plt.xlabel(x_label, fontsize=fontsize)
