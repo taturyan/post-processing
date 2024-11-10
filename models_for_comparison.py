@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from statsmodels.distributions.empirical_distribution import ECDF
-from data_prep import get_adult_data, get_german_data, get_frequencies
+from data_prep import get_adult_data, get_german_data, get_communities_data
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
@@ -53,6 +53,8 @@ def evaluate_BinClassRO(dataset, num, alpha_list=[0.1, 0.05, 0.025],
         X, _, y ,_ = train_test_split(X, y, train_size = sample_size,  stratify=y, random_state=42)
     elif dataset=='german':        
         X, y = get_german_data()
+    elif dataset=='communities':        
+        X, y = get_communities_data()
     else:
         raise Exception('Dataset not found.')
 
@@ -84,7 +86,8 @@ def evaluate_BinClassRO(dataset, num, alpha_list=[0.1, 0.05, 0.025],
                                                                 stratify=y_,random_state=i)
             
             #training base classifier
-            base_clf = LogisticRegression(random_state=i)
+            base_clf = LogisticRegression(multi_class="multinomial", solver='lbfgs', 
+                                           max_iter=5000, random_state=i)
             base_clf.fit(X_train,y_train)
 
             #training BinClassRO
@@ -153,6 +156,9 @@ def evaluate_fairlearn(dataset, num, eps_list, print_details = True,
     elif dataset=='german':        
         X, S, y = get_german_data(problem='DP_unaware', as_df=False)
         S_num = 2
+    elif dataset=='communities':        
+        X, S, y = get_communities_data(problem='DP_unaware', as_df=False)
+        S_num = 2
     else:
         raise Exception('Dataset not found.')
 
@@ -193,7 +199,9 @@ def evaluate_fairlearn(dataset, num, eps_list, print_details = True,
             #training fairlearn
             start = time.time()
 
-            base_clf = LogisticRegression(random_state=i)
+            #base_clf = LogisticRegression(solver='liblinear', random_state=42)
+            base_clf = LogisticRegression(multi_class="multinomial", solver='lbfgs', 
+                                           max_iter=5000, random_state=i)
             constraint = DemographicParity(difference_bound=eps)
             FL_clf = ExponentiatedGradient(base_clf, constraints=constraint)
             FL_clf.fit(X_train, y_train, sensitive_features=S_train)
