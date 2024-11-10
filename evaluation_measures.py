@@ -67,5 +67,17 @@ def eval_DP(pred, S):
         Unfairness[s]=max(abs(CDF_s-CDF))
     return Unfairness    
 
+def eval_DP_argmax(pred_argmax, S):
+    bins=len(np.unique(pred_argmax))
+    hist, bin_edges = np.histogram(pred_argmax,bins=bins)
+    CDF = np.cumsum(hist/len(pred_argmax))
+    Unfairness = {}
+    S_val = sorted(S.unique())
+    for s in S_val:
+        hist, bin_edges = np.histogram(pred_argmax[S==s],bins=bins)
+        CDF_s = np.cumsum(hist/sum(hist))
+        Unfairness[s]=max(abs(CDF_s-CDF))
+    return Unfairness
+
 def eval_gen_constraint(c):
     pass

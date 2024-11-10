@@ -1,5 +1,39 @@
 import numpy as np
 import pandas as pd
+
+def get_communities_data(problem='reject_option', as_df=False):
+    
+    df = pd.read_csv('./data/communities.csv')
+    df = df.fillna(0)
+
+    sens_attrs = ['racepctblack', 'racePctWhite', 'racePctAsian', 'racePctHisp']
+    df['race'] = df[sens_attrs].idxmax(axis=1) #creating a new column based on ethnicity
+    df = df.drop(columns=sens_attrs)
+
+    df = df.drop(df[df['ViolentCrimesPerPop']==0].index)
+    y = np.where(df['ViolentCrimesPerPop'] < 0.2, 0, 1)
+    df = df.drop('ViolentCrimesPerPop', axis=1)
+
+    mapping = {'racePctWhite':1, 'racepctblack':0, 'racePctAsian':0, 'racePctHisp':0} 
+    df['race'] = df['race'].map(mapping) #sensitive attribute: S=1 for white, S=0 for non-white
+
+    if (problem=='DP_unaware' or problem=='DP_aware'):
+        
+        S = df['race']
+        df = df.drop('race', axis=1)
+        
+        if as_df:
+            return df, S, y
+        else:
+            X = df.to_numpy() #features
+            return X, S, y
+    else:
+        X = df.to_numpy()
+        if as_df:
+            return df, y
+        else:
+            X = df.to_numpy()
+            return X, y
     
 def parse_german_data():
     """
@@ -51,8 +85,7 @@ def parse_german_data():
     
     final_df.to_csv("./data/german_parsed.csv", index=False)
     
-    
-    
+
 def get_german_data(problem='reject_option', as_df=False):
     """
     problem: 'reject_option', 'alpha_risk', 'DP_aware', 'DP_unaware'
@@ -172,27 +205,3 @@ def get_lawschool_data(as_df=False):
     else:
         return X, S, y
 
-def get_communities_data(as_df=False):
-    
-    df = pd.read_csv('./data/communities.csv')
-    df = df.fillna(0)
-
-    sens_attrs = ['racepctblack', 'racePctWhite', 'racePctAsian', 'racePctHisp']
-    df['race'] = df[sens_attrs].idxmax(axis=1) #creating a new column based on ethnicity
-    df = df.drop(columns=sens_attrs)
-
-    df = df.drop(df[df['ViolentCrimesPerPop']==0].index)
-    y = df['ViolentCrimesPerPop'] #target
-    df = df.drop('ViolentCrimesPerPop', axis=1)
-
-    mapping = {'racePctWhite':1, 'racepctblack':0, 'racePctAsian':0, 'racePctHisp':0} 
-
-    S = df['race'].map(mapping) #sensitive attribute: S=1 for white, S=0 for non-white
-    df = df.drop('race', axis=1)
-
-    X = df.to_numpy() #features
-    
-    if as_df: #for comparing with agarwal
-        return df, S, y
-    else:
-        return X, S, y
